@@ -6,7 +6,7 @@ import DatabaseManager # Used to get data to be displayed
 from Match import Match # Used for type declaration in a function
 from Team import Team # Used for type declaration in a function
 from Game import Game # Used for type delcaration in a function
-from time import strptime # Used to validate the date input by a user
+from time import strptime, ctime # Used to validate the date input by a user and get the current time for further validation
 
 #AdminPage as a class is far more advanced as it deals with input from the user and manipulation of the database. As such more code is required to ensure saftey
 class AdminPage(customtkinter.CTkFrame):
@@ -81,6 +81,12 @@ class AdminPage(customtkinter.CTkFrame):
             #The check is in a try catch block otherwise errors arise i.e. blank inputs
             try:
                 ValidDateFormat = strptime(Date,"%d-%m-%Y")
+                CurrentDate = strptime(ctime())
+
+                if ValidDateFormat.tm_year != CurrentDate.tm_year:
+                    DisplayMessageInColour("Date must be in current year", '#850101')    
+                    return
+                
             except:
                 DisplayMessageInColour("Date must be in DD-MM-YYYY format", '#850101')
                 return
@@ -92,6 +98,11 @@ class AdminPage(customtkinter.CTkFrame):
             #Function attempts to type cast the string to an int - any character will cause an error and thus shouldn't be allowed
             if not Utils.IsStringInt(Team1Score) or not Utils.IsStringInt(Team2Score):
                 DisplayMessageInColour("Please enter numbers for the team scores", '#850101')
+                return
+            
+            #Statement ensures score value are positive and not too large
+            if int(Team1Score) > 15 or int(Team1Score) < 0 or int(Team2Score) > 15 or int(Team2Score) < 0:
+                DisplayMessageInColour("Scores need to be positive or are too big!", '#850101')
                 return
 
             #Getting and checking the team and game names
@@ -317,6 +328,11 @@ class AdminPage(customtkinter.CTkFrame):
             #Ensuring input is in fact an integer
             if not Utils.IsStringInt(TeamScore):
                 DisplayMessageInColour("Score must be a number", '#850101')
+                return
+            
+             #Statement ensures score value are positive and not too large
+            if int(TeamScore) > 15 or int(TeamScore) < 0:
+                DisplayMessageInColour("Scores need to be positive or are too big!", '#850101')
                 return
 
             #Getting the registeration value
