@@ -43,13 +43,9 @@ class MainView(customtkinter.CTk):
         #Change rendered page to one parsed
         self.Frames[Frame].lift()
 
-# Start of app functionality
-# if not Utils.PreInitValidation():
-#     Utils.Error("Unable to load app. Database inactive or missing theme config")
 
-#customtkinter.set_default_color_theme('Theme.json')
-
-App = MainView() # Init of the starting frame that is the root window
+# Init of the starting frame that is the root window
+App = MainView()
 
 #Config of the main window
 App.geometry(f"{Utils.Y}x{Utils.X}")

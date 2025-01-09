@@ -124,7 +124,7 @@ class UserPage(customtkinter.CTkFrame):
             Widget.destroy()
 
     #Function for switching the main display to the "scoreboard", inititaly a scrolling frame is made and the headers for the table are made, then the core UI elments are made via the sub-function
-    def SwitchToScoreboadDisplay(self): # TODO add buttons to change the top amount shown
+    def SwitchToScoreboadDisplay(self):
         #Before the core UI elements are made the existing UI elements from other pages that user MainFrame need to be forgotten
         PurgeList = self.FindItemsToPurge()
 

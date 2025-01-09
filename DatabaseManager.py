@@ -90,58 +90,94 @@ class DBManager():
         return [TeamName[0] for TeamName in TeamNames]
 
     #The update match function takes a match object and uses its class attributes as paramters to form the query
-    def UpdateMatch(self, match : Match.Match):
+    #Returns true if successful, false if not. Try except used to catch all errors with the query and commiting the change
+    def UpdateMatch(self, match : Match.Match) -> bool:
         #Making a connection to the database
         QueryConnection = self.connection.cursor()
 
-        #Executing the query on the database, based on the matchID
-        QueryConnection.execute(f"UPDATE `matches` SET `Date`= %s,`Team1`= %s,`Team2`= %s,`GamePlayed`= %s,`WinningTeam`= %s,`Team1Score`= %s,`Team2Score`= %s WHERE `MatchId` = %s", (match.Date, match.Team1, match.Team2, match.GamePlayed, match.WinningTeam, match.Team1Score, match.Team2Score, match.MatchID))
+        #Catch all errors in either commiting to the database or the UPDATE query
+        try:
+            #Executing the query on the database, based on the matchID
+            QueryConnection.execute(f"UPDATE `matches` SET `Date`= %s,`Team1`= %s,`Team2`= %s,`GamePlayed`= %s,`WinningTeam`= %s,`Team1Score`= %s,`Team2Score`= %s WHERE `MatchId` = %s", (match.Date, match.Team1, match.Team2, match.GamePlayed, match.WinningTeam, match.Team1Score, match.Team2Score, match.MatchID))
 
-        #Commiting the query to the database so that the change stays
-        self.connection.commit()
+            #Commiting the query to the database so that the change stays
+            self.connection.commit()
+
+            #Return true as query was successful
+            return True
+        except:
+            #Return false as an error occured
+            return False
 
     #The make new match function takes in seperate values that the match has, but parses them as params in the SQL query
     #MatchID is 'dropped' as the database will deal with it at insertion time
-    def MakeNewMatch(self, MatchDate : str, Team1Name : str, Team2Name : str, GameName : str, WinningTeam : str, Team1Score : str, Team2Score : str):
+    #Returns true if successful, false if not. Try except used to catch all errors with the query and commiting the change
+    def MakeNewMatch(self, MatchDate : str, Team1Name : str, Team2Name : str, GameName : str, WinningTeam : str, Team1Score : str, Team2Score : str) -> bool:
         #Making a connection to the database to let us run queries
         QueryConnection = self.connection.cursor()
 
-        #Construt and then execue the query on the database
-        QueryConnection.execute(f"INSERT INTO `matches`(`Date`, `Team1`, `Team2`, `GamePlayed`, `WinningTeam`, `Team1Score`, `Team2Score`) VALUES (%s,%s,%s,%s,%s,%s,%s)", (MatchDate, Team1Name, Team2Name, GameName, WinningTeam, Team1Score, Team2Score))
+        #Catch any errors in commits or queries
+        try:
+            #Construt and then execue the query on the database
+            QueryConnection.execute(f"INSERT INTO `matches`(`Date`, `Team1`, `Team2`, `GamePlayed`, `WinningTeam`, `Team1Score`, `Team2Score`) VALUES (%s,%s,%s,%s,%s,%s,%s)", (MatchDate, Team1Name, Team2Name, GameName, WinningTeam, Team1Score, Team2Score))
 
-        #Commit the change to the db
-        self.connection.commit()
-        
-        #Execute the query to increase a team's score by 1 based on the winner
-        QueryConnection.execute(f"UPDATE `teams` SET `Score` = `Score` + 1 WHERE `TeamId` = {Team1Name if WinningTeam == 0 else Team2Name}")
+            #Commit the change to the db
+            self.connection.commit()
+            
+            #Execute the query to increase a team's score by 1 based on the winner
+            QueryConnection.execute(f"UPDATE `teams` SET `Score` = `Score` + 1 WHERE `TeamId` = {Team1Name if WinningTeam == 0 else Team2Name}")
 
-        #Commit change to db
-        self.connection.commit()
+            #Commit change to db
+            self.connection.commit()
+
+            #Return true as all queries ran successfully
+            return True
+        except:
+            #Return false due to error
+            return False
 
     #Given the properties of a team, consutrct and then exectue a query on the server to insert them as a new record
-    def MakeNewTeam(self, TeamName : str, TeamScore : int, IsRegistered : int, TeamGame : int):
+    #Returns true if successful, false if not. Try except used to catch all errors with the query and commiting the change
+    def MakeNewTeam(self, TeamName : str, TeamScore : int, IsRegistered : int, TeamGame : int) -> bool:
         #Opening a connection to the database
         QueryConnection = self.connection.cursor()
 
-        #Constructing a escaped query to insert the team into the database 
-        QueryConnection.execute(f"INSERT INTO `teams` (`TeamName`, `Score`, `IsRegistered`, `GameID`) VALUES (%s, %s, %s, %s)", (TeamName, TeamScore, IsRegistered, TeamGame))
+        #try catch block to ensure errors in query or commit don't break the program
+        try:
+            #Constructing a escaped query to insert the team into the database 
+            QueryConnection.execute(f"INSERT INTO `teams` (`TeamName`, `Score`, `IsRegistered`, `GameID`) VALUES (%s, %s, %s, %s)", (TeamName, TeamScore, IsRegistered, TeamGame))
 
-        #commiting the change to the database to ensure it remains
-        self.connection.commit()
+            #commiting the change to the database to ensure it remains
+            self.connection.commit()
+
+            #return true as the new team has been successfully made
+            return True
+        except:
+            #false is returned as an error occured
+            return False
 
     #Given a team object, use its attributes to construct an update query for the record
-    def UpdateTeam(self, TeamData : Team.Team):
+    #Returns true if successful, false if not. Try except used to catch all errors with the query, commiting change or updating cache dict
+    def UpdateTeam(self, TeamData : Team.Team) -> bool:
         #Making a connection to the database
         QueryConnection = self.connection.cursor()
         
-        #Executing the query on the database, ensuring to only affect the given teamID
-        QueryConnection.execute(f"UPDATE `teams` SET `TeamName`= %s,`IsRegistered`= %s,`Score`= %s,`GameID`= %s WHERE `TeamId` =  %s", (TeamData.TeamName, TeamData.IsRegistered, TeamData.Score, TeamData.Game, TeamData.TeamID))
+        #Catch any errors in update logic
+        try:
+            #Executing the query on the database, ensuring to only affect the given teamID
+            QueryConnection.execute(f"UPDATE `teams` SET `TeamName`= %s,`IsRegistered`= %s,`Score`= %s,`GameID`= %s WHERE `TeamId` =  %s", (TeamData.TeamName, TeamData.IsRegistered, TeamData.Score, TeamData.Game, TeamData.TeamID))
 
-        #Commiting the query to the database so that the change stays
-        self.connection.commit()
+            #Commiting the query to the database so that the change stays
+            self.connection.commit()
 
-        #Updating the cache to prevent invalid old cache error
-        self.TeamNameCache[TeamData.TeamID] = TeamData.TeamName
+            #Updating the cache to prevent invalid old cache error
+            self.TeamNameCache[TeamData.TeamID] = TeamData.TeamName
+
+            #return true as all was successful
+            return True
+        except:
+            #return false due to an error arisng
+            return False
 
     #Get scores makes a list of N team objects and retuns it to the sender (used in scoreboard and game scoreboard display)
     def GetScores(self, NumberOfScores : int):
@@ -272,31 +308,49 @@ class DBManager():
         return Teams
     
     #Given a game object, construct and update the given row in the database
-    def UpdateGame(self, GameData : Game.Game):
+    #Returns true if successful, false if not. Try except used to catch all errors with the query, commiting the change and updating cache dict
+    def UpdateGame(self, GameData : Game.Game) -> bool:
         #Open a connection to the database
         Connection = self.connection.cursor()
 
-        #Update the game record matching the ID value in the parse object
-        Connection.execute(f"UPDATE `games` SET `GameName`= %s,`IsRegistered`= %s WHERE `GameId` =  %s", (GameData.Name, GameData.IsRegistered, GameData.GameID))
+        #Catch all errors
+        try:
+            #Update the game record matching the ID value in the parse object
+            Connection.execute(f"UPDATE `games` SET `GameName`= %s,`IsRegistered`= %s WHERE `GameId` =  %s", (GameData.Name, GameData.IsRegistered, GameData.GameID))
 
-        #Commit the update to the database
-        self.connection.commit()
+            #Commit the update to the database
+            self.connection.commit()
 
-        #Updating the cache to reflect the updated name, to prevent old cache read errors
-        self.GameNameCache[GameData.GameID] = GameData.Name
+            #Updating the cache to reflect the updated name, to prevent old cache read errors
+            self.GameNameCache[GameData.GameID] = GameData.Name
+
+            #Return true as everything was successful
+            return True
+        except:
+            #Return flase as an error arouse during runtime
+            return False
 
     #Given the values needed to make a game, construct and execute a query to add the game as a new row
-    def MakeNewGame(self, GameName : str, IsRegistered : int):
+    #Returns true if successful, false if not. Try except used to catch all errors with the query and commiting the change
+    def MakeNewGame(self, GameName : str, IsRegistered : int) -> bool:
         #Open a connection to manipulate the database
         Connection = self.connection.cursor()
 
-        #insert a new record into the db with the values parsed
-        Connection.execute(f"INSERT INTO `games`(`GameName`, `IsRegistered`) VALUES (%s, %s)", (GameName, IsRegistered))
+        try:
+            #insert a new record into the db with the values parsed
+            Connection.execute(f"INSERT INTO `games`(`GameName`, `IsRegistered`) VALUES (%s, %s)", (GameName, IsRegistered))
 
-        #Save the changes to the database
-        self.connection.commit()
+            #Save the changes to the database
+            self.connection.commit()
 
-    def GetGameIDFromGameName(self, GameName):
+            #Return true as query and commit were successful
+            return True
+        except:
+            #Return false as an error occured
+            return False
+
+
+    def GetGameIDFromGameName(self, GameName) -> bool | int:
         #If the game name parsed is an empty string, return false
         if len(GameName) <= 0: return False, 0
 
@@ -310,12 +364,17 @@ class DBManager():
         QueryConnection = self.connection.cursor()
 
         #Select the name of the game with the given ID
-        QueryConnection.execute(f"SELECT `GameId` FROM `games` WHERE `GameName` = %s", (GameName))
+        QueryConnection.execute(f"SELECT `GameId` FROM `games` WHERE `GameName` = '{GameName}'")
 
-        #From the returned data, extract the name from the query and return it
-        return True, QueryConnection.fetchall()[0][0] or False, 0
+        GameID = QueryConnection.fetchall()[0][0]
+       
+        if GameID:
+            return True, GameID
+        else:
+            return False, 0
     
-    def GetTeamIDFromTeamName(self, Team1Name, Team2Name):
+
+    def GetTeamIDFromTeamName(self, Team1Name, Team2Name) -> bool | int:
         #If the parsed team names have a length less than 0, return false
         if len(Team1Name) <= 0 or len(Team2Name) <= 0: return False, 0, 0
 

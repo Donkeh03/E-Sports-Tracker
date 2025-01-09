@@ -68,12 +68,35 @@ class AdminPage(customtkinter.CTkFrame):
             #Clearing the text of message label
             MsgLbl.configure(text="")
 
+        #Function that removes old items on the scrolling frame (frame that holds the match data), then replaces it
+        #This allows the page to 'reload' when a user successfully adds new or updates a match
+        def RefreshDisplay():
+            #Remove old visual widgets
+            WidgetsToDel = self.FindItemsToPurge(ScrollingFrame, -1)
+
+            #Display new data on the frame
+            DisplayUI()
+
+            #Properly destroy the now old widgets from memeory
+            for Widget in WidgetsToDel:
+                Widget.destroy()
+
+        #Handler function for getting the data, and pack'ing it onto the interface
+        def DisplayUI():
+            #Now that the interface has been constructed - the match data can be collected
+            MatchData = self.Connection.GetMostRecentMatches(100)
+
+            #Iteration over the match data, for each match in the list a user interface is made and configured, before it is placed within the scrolling frame
+            for match in MatchData:
+                UI = GenerateCompactMatchDisplay(match)
+                UI.pack(pady=15)
+
         #Validation function for the match input boxes - feedback occurs via the message label. This function is also an intermediate step before the db call is made. A breakdown of checks done;
         #Initally the format of date is checked to be DD-MM-YYYY
         #Then both score boxes are check to contain integer values
         #Then the team names and game name selected are converted to their ID values
         #If all is well, either the update or create method is invoked depeding on MatchID parsed
-        #(MatchID is parsed as the update function needs it for the WHERE clause. It is also used to determine if the user is making a new match or updating an existing one - as db primary keys start at 0)
+        #(MatchID is parsed as the update function needs it for the WHERE clause. It is also used to determine if the user is making a new match or updating an existing one - as db primary keys start at 0
         def ValidateInputBoxes(MatchID : int = -1):
             #Getting then checking the date input
             Date = InputDateEntry.get()
@@ -139,11 +162,19 @@ class AdminPage(customtkinter.CTkFrame):
                 WinningTeam = 1 if Team1Score < Team2Score else 0
                 #If the matchID parsed is above 0 we know it's primary key is being used and so must need updating, else we are making a new record
                 if MatchID > 0:
-                    self.Connection.UpdateMatch(Match(MatchID, ValidDateFormat, Team1Name, Team2Name, GameName, WinningTeam, Team1Score, Team2Score))
-                    DisplayMessageInColour("Match updated sucessfully", '#028A0F')
+                    Success = self.Connection.UpdateMatch(Match(MatchID, ValidDateFormat, Team1Name, Team2Name, GameName, WinningTeam, Team1Score, Team2Score))
+                    if Success:
+                        DisplayMessageInColour("Match updated sucessfully", '#028A0F')
+                        RefreshDisplay()
+                    else:
+                        DisplayMessageInColour("Error occured updating match", '#850101')
                 else:
-                    self.Connection.MakeNewMatch(ValidDateFormat, Team1Name, Team2Name, GameName, WinningTeam, Team1Score, Team2Score)
-                    DisplayMessageInColour("Match added", '#028A0F')
+                    Success = self.Connection.MakeNewMatch(ValidDateFormat, Team1Name, Team2Name, GameName, WinningTeam, Team1Score, Team2Score)
+                    if Success:
+                        DisplayMessageInColour("Match added", '#028A0F')
+                        RefreshDisplay()
+                    else:
+                        DisplayMessageInColour("Error occured adding match", '#850101')
             else:
                 DisplayMessageInColour("Unable to find team/game name", '#850101')
 
@@ -288,13 +319,9 @@ class AdminPage(customtkinter.CTkFrame):
         SubmitBtn = customtkinter.CTkButton(CRUDFrame, width=Utils.RelXSize(0.25, CRUDFrame), height=Utils.RelYSize(0.075, CRUDFrame), text='Submit', font=('Inter', 26, 'bold'), corner_radius=24)
         SubmitBtn.place(relx=0.5, rely=0.75, anchor=customtkinter.N)
 
-        #Now that the interface has been constructed - the match data can be collected
-        MatchData = self.Connection.GetMostRecentMatches(100)
-
-        #Iteration over the match data, for each match in the list a user interface is made and ocnfigured, before it is placed within the scrolling frame
-        for match in MatchData:
-            UI = GenerateCompactMatchDisplay(match)
-            UI.pack(pady=15)
+        #Call function that gets games and displays them on the interface
+        #Written as function for use in refresh function, avoiding recursive call to achieve result
+        DisplayUI()
 
         #As the interface has been completely done, the purge list can be interated over and destroyed
         for Widget in PurgeList:
@@ -304,6 +331,29 @@ class AdminPage(customtkinter.CTkFrame):
     def SwitchToTeamView(self):
         #Like the UserPage, a list of items to be purged is made
         PurgeList = self.FindItemsToPurge()
+
+        #Function that removes old items on the scrolling frame (frame that holds the match data), then replaces it
+        #This allows the page to 'reload' when a user successfully adds new or updates a match
+        def RefreshDisplay():
+            #Remove old visual widgets
+            WidgetsToDel = self.FindItemsToPurge(ScrollingFrame, -1)
+
+            #Display new data on the frame
+            DisplayUI()
+
+            #Properly destroy the now old widgets from memeory
+            for Widget in WidgetsToDel:
+                Widget.destroy()
+
+        #Handler function for getting the data, and pack'ing it onto the interface
+        def DisplayUI():
+            #Get a list of all the teams registered first then un-registered
+            Teams = self.Connection.GetTeamsSortedByRegistered()
+
+            #Iterate over each team and make an interface element for them, then place it on the scrolling frame
+            for team in Teams:
+                UI = GenerateTeamBanner(team)
+                UI.pack(pady=15)
 
         #This function validates the team name, score, registration and game name values to ensure they can be parsed to the database without causing issues
         #First the name is checked to be more than 0 chars (empty) and less than 20
@@ -360,12 +410,20 @@ class AdminPage(customtkinter.CTkFrame):
             #If team ID is more than -1 then we want to update the record in the database, if it is -1 then we want to make a new record
             if TeamID > -1:
                 #Parse inputted values as a team object to the update function
-                self.Connection.UpdateTeam(Team(TeamID, TeamName, IsRegistered, int(TeamScore), TeamGame))
-                DisplayMessageInColour("Updated Team", '#028A0F')
+                Success = self.Connection.UpdateTeam(Team(TeamID, TeamName, IsRegistered, int(TeamScore), TeamGame))
+                if Success:
+                    DisplayMessageInColour("Updated Team", '#028A0F')
+                    RefreshDisplay()
+                else:
+                    DisplayMessageInColour("Error Occured Updating Team", '#850101')
             else:
                 #Parse input values to make new function as single params (team object can't be formed as id is missing)
-                self.Connection.MakeNewTeam(TeamName, TeamScore, IsRegistered, TeamGame)
-                DisplayMessageInColour("Team Succesfully Registered", '#028A0F')
+                Success = self.Connection.MakeNewTeam(TeamName, TeamScore, IsRegistered, TeamGame)
+                if Success:
+                    DisplayMessageInColour("Team Succesfully Registered", '#028A0F')
+                    RefreshDisplay()
+                else:
+                    DisplayMessageInColour("Error Occured Registering Team", '#850101')
             
         #A small almost utility funtion that takes a hex colour string and a message. This is how feedback of errors or succession is shown to the user
         def DisplayMessageInColour(Message : str, Colour : str):
@@ -491,13 +549,8 @@ class AdminPage(customtkinter.CTkFrame):
         MessageLbl = customtkinter.CTkLabel(InputFrame, text='', width=Utils.RelXSize(0.75, InputFrame), height=Utils.RelYSize(0.075))
         MessageLbl.place(relx=0.5, rely=0.95, anchor=customtkinter.S)
 
-        #Get a list of all the teams registered first then un-registered
-        Teams = self.Connection.GetTeamsSortedByRegistered()
-
-        #Iterate over each team and make an interface element for them, then place it on the scrolling frame
-        for team in Teams:
-            UI = GenerateTeamBanner(team)
-            UI.pack(pady=15)
+        #Invoke display UI since other UI components are now ready
+        DisplayUI()
 
         #As the interface has been completely done, the purge list can be interated over and destroyed
         for Widget in PurgeList:
@@ -508,6 +561,29 @@ class AdminPage(customtkinter.CTkFrame):
         #Like the UserPage, a list of items to be purged is made
         PurgeList = self.FindItemsToPurge()
 
+        #Function that removes old items on the scrolling frame (frame that holds the match data), then replaces it
+        #This allows the page to 'reload' when a user successfully adds new or updates a match
+        def RefreshDisplay():
+            #Remove old visual widgets
+            WidgetsToDel = self.FindItemsToPurge(ScrollingFrame, -1)
+
+            #Display new data on the frame
+            DisplayUI()
+
+            #Properly destroy the now old widgets from memeory
+            for Widget in WidgetsToDel:
+                Widget.destroy()
+
+        #Handler function for getting the data, and pack'ing it onto the interface
+        def DisplayUI():
+            #Get a list of game objects from the database, False is parsed as we want to ignore the IsRegistered only check and get all games, ordered by registration
+            Games = self.Connection.GetGamesPlayed(False)
+
+            #Iterate over the game objects and make a UI element for each one, which is then placed on the interface
+            for game in Games:
+                UI = GenerateGameBanner(game)
+                UI.pack(pady=15)
+
         #A small almost utility funtion that takes a hex colour string and a message. This is how feedback of errors or succession is shown to the user
         def DisplayMessageInColour(Message : str, Colour : str):
             MessageLbl.configure(text=Message, text_color=Colour, font=('Inter', 26, 'bold'))
@@ -515,8 +591,10 @@ class AdminPage(customtkinter.CTkFrame):
         #When the submit button is clicked, validate the registered state and that the game name input isnt too long or empty
         #If the inputs are valid, make the correct database call to either update or insert new record
         def ProcessSubmitClick(GameID : int = -1):
+            #Getting the game name from the entry
             GameName = GameNameEntry.get()
 
+            #Checking the length of the game name
             if len(GameName) <= 0:
                 DisplayMessageInColour("Name cannot be empty!", '#850101')
                 return
@@ -524,23 +602,40 @@ class AdminPage(customtkinter.CTkFrame):
                 DisplayMessageInColour("Name is too long!", '#850101')
                 return
             
+            #Getting the registration value for the game
             IsRegistered = GameRegVar.get()
 
+            #Checking the boolean state of the registered value
             if IsRegistered == 0 or IsRegistered == 1:
                 pass
             else:
                 DisplayMessageInColour("Team must be registered or not!", '#850101')
                 return
 
+            #If gameID is more than -1 that means the game is being updated, -1 is parsed for games that are being made and have no ID (yet)
             if GameID > -1:
-                self.Connection.UpdateGame(Game(GameID, GameName, IsRegistered))
-                DisplayMessageInColour("Successfully Update Game", '#028A0F')
-                return
-            else:
-                self.Connection.MakeNewGame(GameName, IsRegistered)
-                DisplayMessageInColour("Successfully Created Game", '#028A0F')
-                return
+                #Query the database to update a game, returning true if successful, false otherwise
+                Success = self.Connection.UpdateGame(Game(GameID, GameName, IsRegistered))
 
+                #If update was successful, display a message to the user and refresh the UI.
+                #Else display an error message
+                if Success:
+                    DisplayMessageInColour("Successfully Update Game", '#028A0F')
+                    RefreshDisplay()
+                else:
+                    DisplayMessageInColour("Error Occured Updating Game", '#850101')
+            else:
+                #Query database to make a new game, returning true if successful, false otherwise
+                Success = self.Connection.MakeNewGame(GameName, IsRegistered)
+
+                #if successful, refresh UI and display a message to the user.
+                #else display an error message
+                if Success:
+                    DisplayMessageInColour("Successfully Created Game", '#028A0F')
+                    RefreshDisplay()
+                else:
+                    DisplayMessageInColour("Error Occured Created Game", '#850101')
+                
         #Configuration of the input frame, if a game is parsed then pre-configure the input frame with its values, if not then just configure the submit and title text
         def ConfigureInputFrame(Game : Game = None):
             if Game:
@@ -558,7 +653,6 @@ class AdminPage(customtkinter.CTkFrame):
         #When the input frames close button is clicked, remove all currently input data and clear the message label
         def CloseInputFrame():
             InputFrame.place_forget()
-
             GameNameEntry.delete(0,len(GameNameEntry.get()))
             MessageLbl.configure(text='')
             GameRegNo.deselect()
@@ -577,6 +671,7 @@ class AdminPage(customtkinter.CTkFrame):
             EditButton = customtkinter.CTkButton(BackgroundFrame, width=Utils.RelXSize(0.2, BackgroundFrame), height=Utils.RelYSize(0.4, BackgroundFrame), text='Edit', fg_color='#191919', font=('inter', 20, 'bold'), command=lambda:ConfigureInputFrame(Game))
             EditButton.place(relx=0.95, rely=0.5, anchor=customtkinter.E)
 
+            #Return made UI to the caller
             return BackgroundFrame
 
         #The first step of the function is to configure the text of the title so that it matches the content that is about to be displayed on it
@@ -626,20 +721,15 @@ class AdminPage(customtkinter.CTkFrame):
         MessageLbl = customtkinter.CTkLabel(InputFrame, text='', width=Utils.RelXSize(0.75, InputFrame), height=Utils.RelYSize(0.075))
         MessageLbl.place(relx=0.5, rely=0.95, anchor=customtkinter.S)
 
-        #Get a list of game objects from the database, False is parsed as we want to ignore the IsRegistered only check and get all games, ordered by registration
-        Games = self.Connection.GetGamesPlayed(False)
-
-        #Iterate over the game objects and make a UI element for each one, which is then placed on the interface
-        for game in Games:
-            UI = GenerateGameBanner(game)
-            UI.pack(pady=15)
+        #Call display UI as the holding UI elements have been made
+        DisplayUI()
 
         #As the interface has been completely done, the purge list can be interated over and destroyed
         for Widget in PurgeList:
             Widget.destroy()
 
     #Function to un-render the children of a given widget, which are going to be deleted in order for new UI elements to be made
-    def FindItemsToPurge(self, Widget : customtkinter.CTkBaseClass = None):
+    def FindItemsToPurge(self, Widget : customtkinter.CTkBaseClass = None, ChildCount : int = 1):
         #List of widgets to be deleted, returned at the end of the function
         ToBeDestroyed = []
 
@@ -649,9 +739,10 @@ class AdminPage(customtkinter.CTkFrame):
 
         #Iterate over the children of the holding widget
         #Enumerate is used to get the index without needing an external variable
-        #0 and 1 are ignored as 0 is the frame itself and 1 is the title
+        #ChildCount tells the app how many children to ignore deleting, 0 is always the widget itself
+        #1 is often the title of a page
         for ChildIndex, Widget in enumerate(Widget.children.values()):
-            if ChildIndex > 1:
+            if ChildIndex > ChildCount:
                 #Un-render the UI element and then add it to the list 
                 Widget.place_forget()
                 ToBeDestroyed.append(Widget)

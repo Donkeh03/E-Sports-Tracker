@@ -13,18 +13,14 @@ ImageDir = os.path.join(os.getcwd(), "Images") # The basefile path for accessing
 # Given a float 'decimal' (0.00-1.00) return the size an object should be, relative to the root window size or another widget
 def RelXSize(decimal : float, Window : customtkinter.CTkBaseClass = None):
     if Window:
-        #print(f"Obj: {Window.widgetName}:: Size(w): {Window._current_width}")
         return int(decimal * Window._desired_width)
     else:
-        #print(f"Obj: None:: Size(w): {int(decimal * X)}")
         return int(decimal * X)
 
 def RelYSize(decimal: float, Window : customtkinter.CTkBaseClass = None):
     if Window:
-        #print(f"Obj: {Window.widgetName}:: Size (h): {Window._current_height}")
         return int(decimal * Window._desired_height)
     else:
-        #print(f"Obj: None:: Size(h): {int(decimal * Y)}")
         return int(decimal * Y)
 
 #Error message function using the bulit in windows erroring method. Taking a string to be displayed to the user.
